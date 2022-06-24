@@ -1,0 +1,13 @@
+CICLO;1;2;3
+EM;R;N;W
+EP;I;Z;
+IF/EEP;E;D;
+IF/EEP;E;A;
+IF/EEP;D;A;
+EEP;E;Y;
+EEP;E;I;
+EEP;E;X;
+EEP;Y;I;
+EEP;I;X;
+EEP;X;A;
+EEP;I;A;

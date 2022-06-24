@@ -63,7 +63,7 @@ def get_data():
                             'Obs. Volume':'Obs'
                            }, inplace=True)
 
-    df_ciclo = pd.read_csv('/Users/robson/Documents/Otimizador/Ciclos_REC5.csv', sep=';', encoding='latin-1', low_memory=False)
+    df_ciclo = pd.read_csv('Ciclos_REC5.csv', sep=';', encoding='latin-1', low_memory=False)
 
     df_ciclo.fillna(0, inplace=True)
     df_ciclo = df_ciclo.applymap(int) ## converte todas as colunas para int

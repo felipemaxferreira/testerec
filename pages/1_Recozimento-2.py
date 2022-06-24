@@ -51,7 +51,7 @@ def get_data():
     df_data=df_data.query('Situacao_Processo == @SITUACAO and Equip_Atual == @EQUIP and Ciclo in @possiveis_ciclos')
 
 
-    df_ciclo = pd.read_csv('/Users/robson/Documents/Otimizador/CICLO_LETRAS.csv', sep=';',
+    df_ciclo = pd.read_csv('CICLO_LETRAS.csv', sep=';',
                            encoding='latin-1', low_memory=False)
     df_ciclo.drop(columns=['CICLO'], inplace=True)
 

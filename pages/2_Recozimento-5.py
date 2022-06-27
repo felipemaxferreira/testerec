@@ -39,7 +39,7 @@ def ciclos(array):
 
 
 def get_data():
-    arq='06-05-2022-03-horas-DT-ENGENHARIA-Otimizador.CSV'
+    arq='DT-ENGENHARIA-Otimizador.CSV'
     #arq='26-04-2022-03-horas-DT-ENGENHARIA-Otimizador.CSV'
     df_data=pd.read_csv(arq, sep=";", header=0, encoding='latin-1')
 

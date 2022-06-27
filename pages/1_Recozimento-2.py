@@ -18,7 +18,9 @@ from random import sample
 
 def get_data():
     arq='DT-ENGENHARIA-Otimizador.CSV'
+    #arq='26-04-2022-03-horas-DT-ENGENHARIA-Otimizador.CSV'
     df_data=pd.read_csv(arq, sep=";", header=0, encoding='latin-1')
+
 
     df_data.rename(columns={'Ult Eqpt':'Ult_Eq',
                             'Equip Atual':'Equip_Atual',
@@ -633,12 +635,24 @@ def get_leves(data):
     return data.sort_values(by='Peso')[fields].head(10).set_index('Volume')
 
 def get_pesos(data):
+    aux=[]
     leves=data.query('Peso < 15')
     medios=data.query('Peso >= 15 and Peso < 20')
     pesados=data.query('Peso >= 20')
-    aux=[['Leves', len(leves), min(leves['Peso']), max(leves['Peso']), np.mean(leves['Peso'])],
-         ['Medios', len(medios), min(medios['Peso']), max(medios['Peso']), np.mean(medios['Peso'])],
-         ['Pesados', len(pesados), min(pesados['Peso']), max(pesados['Peso']), np.mean(pesados['Peso'])]]
+
+    if leves.shape[0] > 0:
+        aux.append(['Leves', len(leves), min(leves['Peso']), max(leves['Peso']), np.mean(leves['Peso'])])
+    else:
+        aux.append(['Leves', 0, 0, 0, 0])
+    if medios.shape[0] > 0:
+        aux.append(['Medios', len(medios), min(medios['Peso']), max(medios['Peso']), np.mean(medios['Peso'])])
+    else:
+        aux.append(['Medios', 0, 0, 0, 0])
+    if pesados.shape[0] > 0:
+        aux.append(['Pesados', len(pesados), min(pesados['Peso']), max(pesados['Peso']), np.mean(pesados['Peso'])])
+    else:
+        aux.append(['Pesados', 0, 0, 0, 0])
+
     return pd.DataFrame(aux, columns=["Peso", "Qtde", "Minimo", "Maximo", "Media"]).set_index('Peso')
 
 def convert_df(df):
@@ -646,7 +660,7 @@ def convert_df(df):
     return df.to_csv(sep=';').encode('utf-8')
 
 
-st.set_page_config(page_title="Otimizador", page_icon="🐞", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Otimizador", page_icon="2️⃣", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -688,7 +702,7 @@ if rolos_leves:
     df_data, rec2_ciclo = get_data()
     lista=get_leves(data=df_data)
     #menores=list(lista.index)
-    st.dataframe(lista, 2000, 1000)
+    st.table(lista)
     #options = st.multiselect('What are your favorite colors', menores, [menores[0]])
 
 if preview:

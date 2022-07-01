@@ -46,21 +46,21 @@ def eda(data):
 
 st.set_page_config(page_title="Estoque", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
-data = st.file_uploader("Wybierz pliki CSV:",type = 'csv', accept_multiple_files=True)
+data = st.file_uploader("Selecione os arquivos CSV:", type = 'csv', accept_multiple_files=True)
 DFL=pd.DataFrame()
 for file in data:
-   Table = pd.read_csv(file, sep=';', encoding='latin-1', thousands='.', decimal=',')
-   DF1 = pd.DataFrame(Table)
-   DFL = pd.concat([DFL,DF1], sort=False)
+    Table = pd.read_csv(file, sep=';', encoding='latin-1', thousands='.', decimal=',')
+    DF1 = pd.DataFrame(Table)
+    DFL = pd.concat([DFL,DF1], sort=False)
 
 form = st.form(key="annotation", clear_on_submit=False)
 
 with form:
-    preview = st.form_submit_button(label="Carregar")
+    preview = st.form_submit_button(label="✅ Carregar")
 
 if preview:
     DFL=eda(DFL)
     st.session_state['estoque'] = DFL.reset_index(drop=True)
     st.write(pd.DataFrame(DFL))
 
-st.sidebar.success("Select a demo above.")
+st.sidebar.success("Carga estoque Recozimento")

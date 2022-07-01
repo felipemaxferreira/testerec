@@ -17,14 +17,12 @@ from random import sample
 import os
 
 def get_data():
-    #df_data = pd.read_csv('tudo de tudo.csv', sep=';', encoding='latin-1')
     df_data = st.session_state.estoque
 
     LIMITE_LARG = 4810 - 180
     #INFEASIBLE = 1e8
     possiveis_ciclos = ['R', 'N', 'W', 'I', 'Z', 'E', 'D', 'A', 'Y', 'X']
     EQUIP = ['REC-2', 'REC-5']
-    #df_data.rename(columns={'Ciclo_Rec2':'Ciclo'}, inplace=True)
 
     df_data=df_data.query('Ciclo_Rec2 == Ciclo_Rec2 and Situacao == "ESTOCADO"')
 
@@ -40,12 +38,9 @@ def get_data():
 
     rec2_ciclo=get_list_ciclo(df_ciclo)
 
-
     df_data['Ciclo_Rec2'] = df_data['Ciclo_Rec2'].str.strip()
 
-
     df_data = df_data.sort_values(by=['Esp', 'Peso', 'Diam', 'Ciclo_Rec2']).copy().reset_index(drop=True)
-
 
     df_data=df_data.query('Prioridade != "INDEFINIDO"')
     df_data.drop_duplicates(subset=['Volume'], keep='first', inplace=True, ignore_index=False)
@@ -53,8 +48,8 @@ def get_data():
 
     Pilhas=df_data[['Pilha']]
     Pilhas=Pilhas.query('Pilha == Pilha')
-    Pilhas['REC']=df_data['Pilha'].str.slice(0,2)
-    Pilhas['Prefixo']=df_data['Pilha'].str.slice(0,8)
+    Pilhas['REC']=Pilhas['Pilha'].str.slice(0,2)
+    Pilhas['Prefixo']=Pilhas['Pilha'].str.slice(0,8)
     Pilhas['Sufixo']=Pilhas['Pilha'].apply(lambda x: x[-1:])
     Pilhas.reset_index(drop=True, inplace=True)
     Pilhas.rename(columns={'Pilha':'Cod_Pilha'}, inplace=True)
@@ -101,8 +96,8 @@ def get_data():
 
 
     df_data = df_data[['Volume','Esp','Diam','Larg','Ciclo_Rec2','Prod','Peso','Faixa_Fator', 'Limpeza',
-                       'Prazo_Antiguidade', 'Agrup_Ciclo', 'Prioridade', 'Peso_Prioridade',
-                       'Antiguidade', 'Antiguidade_Horas', 'Critico_Antiguidade', 'Pilha']]
+                       'Prazo_Antiguidade', 'Agrup_Ciclo', 'Prioridade', 'Peso_Prioridade', 'Antiguidade', 
+                       'Antiguidade_Horas', 'Critico_Antiguidade', 'Pilha', 'Obs']]
 
     df_data.reset_index(drop=True, inplace=True)
 
@@ -111,28 +106,26 @@ def get_data():
 
     df_data=df_data.merge(Pilhas, left_on=df_data.Pilha, right_on=Pilhas.Cod_Pilha, how='left')
 
-    #st.write(df_data.columns)
-
     df_data = df_data[['Volume', 'Esp', 'Diam', 'Larg', 'Ciclo_Rec2', 'Prod', 'Peso', 'Faixa_Fator', 'Limpeza',
-                       'Prioridade', 'Peso_Prioridade', 'Antiguidade', 'Agrup_Ciclo',
-                       'Antiguidade_Horas', 'Critico_Antiguidade', 'Pilha', 'REC', 'Pos']]
-    #df_data.rename(columns={'REC_x':'REC'}, inplace=True)
+                       'Prioridade', 'Peso_Prioridade', 'Antiguidade', 'Agrup_Ciclo', 'Antiguidade_Horas', 
+                       'Critico_Antiguidade', 'Pilha', 'REC', 'Pos', 'Obs']]
 
     df_data.Pos.fillna(0, inplace=True)
     df_data.REC.fillna('R2', inplace=True)
-
-    pos_pilha=[0, 1]
-    df_data=df_data.query('Pos in @pos_pilha')
+    
+    set_pilha = list(range(0, pos_pilha))
+    df_data=df_data.query('Pos in @set_pilha')
+    
+    if agrupamento != "TODOS":
+        df_data=df_data.query('Agrup_Ciclo == @agrupamento')    
+    
     df_data.reset_index(drop=True, inplace=True)
 
     # ## Constraints
 
-    data = datetime.now().strftime("%d-%m-%Y")
-    hora = datetime.now().strftime("%H")
-    prefixo=data+"-"+hora+"-horas"
-
-
-    # ### Dominio = 4 rolos
+    #data = datetime.now().strftime("%d-%m-%Y")
+    #hora = datetime.now().strftime("%H")
+    #prefixo=data+"-"+hora+"-horas"
 
     df_data=df_data.sort_values(by='Peso')
     df_data.reset_index(drop=True, inplace=True)
@@ -274,8 +267,8 @@ def constraint_fator_compressao(data):
     if sum(data['Fator'] < data['Peso_acumulado']) != 0: # se algum caso for True entao = 1
         return 1
 
-    #if not constraint_bi(data):
-    #    return 1
+    if not constraint_bi(data):
+        return 1
 
     data=data.sort_values(by=['Diam'])
 
@@ -345,13 +338,13 @@ def funcao_custo(solucao):
 
     pesos=60-sum(data['Peso'])
 
-    #posicao=sum(list(np.array(data['Pos'])**2))
+    posicao=sum(list(np.array(data['Pos'])**2))
 
     ### PRAZO
     prazo = constraint_prazo(data)
     antiguidade = sum(data['Critico_Antiguidade'])
 
-    return (altura*100)+prazo+peso*1000+antiguidade#+posicao*1000000
+    return (altura*100)+prazo+peso*1000+antiguidade+posicao*1000000
 
 
 def get_combinations(data, n_pesado, n_medio, n_leve):
@@ -467,7 +460,7 @@ def compare_solutions(solucao):
 # # Otimização
 def show_values(indice):
     fields=['Volume','Esp','Diam','Larg','Ciclo_Rec2','Prod','Peso','Faixa_Fator','Agrup_Ciclo',
-            'Prioridade', 'Antiguidade', 'Limpeza', 'Pilha']
+            'Prioridade', 'Antiguidade', 'Limpeza', 'Pilha', 'Pos','Obs']
     return df_data.query('index in @indice')[fields]
 
 
@@ -475,7 +468,7 @@ def saida_arquivo(options):
     count=0
     size=len(options[0])
     saida = pd.DataFrame()
-    opcao = pd.DataFrame()
+    opcao = pd.DataFrame() 
     for i in options:
         count+=1
         opcao = calcula_fator_compressao(data=show_values(i).sort_values(by='Diam'), dominio=size)
@@ -485,14 +478,17 @@ def saida_arquivo(options):
         opcao['Peso'] = opcao['Peso'].round(1)
         opcao['Diam'] = opcao['Diam'].astype(str)
         opcao['Opcao'] = opcao['Opcao'].astype(str)
-
+        opcao['Obs'] = opcao['Obs'].astype(str)
+        opcao['Pos'] = opcao['Pos'] + 1
+        opcao['Pos'] = opcao['Pos'].astype(str)
+        opcao['Pos'] = opcao['Pos'] + '°'
+        opcao.Obs.replace('nan', '', inplace=True)
         opcao.loc["Total"] = opcao.sum(numeric_only=True).round(2)
         opcao.fillna("", inplace=True)
         opcao.at['Total', 'Volume'] = "TOTAL"
         saida = pd.concat([saida, opcao],ignore_index=False)
-        saida.Prioridade.replace('10. Antecipado ProduÃ§Ã£o', '10. Antecipado', inplace=True)
-        saida.Prioridade.replace('02. CrÃ­tico', '02. Critico', inplace=True)
-        saida.Prioridade.replace('05. Atraso maior que 30 dias e', '05. Atraso > 30 dias', inplace=True)
+        saida.Prioridade.replace('10. Antecipado Produção', '10. Antecipado Prod', inplace=True)
+        saida.Prioridade.replace('05. Atraso maior que 30 dias em relação ao PCA', '05. Atraso > 30 dias', inplace=True)
     return saida
 
 
@@ -550,40 +546,11 @@ def get_estatisticas(df_data):
     stats['< 1100'] = df_data.query('Larg < 1100').shape[0]
     stats.Quantidade = stats.Quantidade.astype(int)
     ciclos=pd.DataFrame(df_data['Agrup_Ciclo'].value_counts())
-    ciclos.rename(columns={'Agrup_Ciclo':'Quantidade'}, inplace=True)
+    ciclos.rename(columns={'Agrup_Ciclo':'Qtde'}, inplace=True)
     return stats, ciclos
 
-
-def get_analise_pesos(data):
-    div=data.Peso.quantile([0.33, 0.67])
-    lim1=div[0.33]
-    lim2=div[0.67]
-    leves=data.query('Peso <= @lim1')
-    medios=data.query('Peso > @lim1 and Peso < @lim2')
-    pesados=data.query('Peso >= @lim2')
-    leves=pd.DataFrame(leves.Peso.describe()).T
-    medios=pd.DataFrame(medios.Peso.describe()).T
-    pesados=pd.DataFrame(pesados.Peso.describe()).T
-    total=pd.DataFrame(data.Peso.describe()).T
-    pesos=pd.concat([leves,medios,pesados,total])
-    pesos.index=['Leves', 'Medios', 'Pesados', 'TOTAL']
-    pesos=pesos[['count', 'mean', 'min', 'max']]
-    pesos.columns=['Quantidade', 'Media', 'Minimo', 'Maximo']
-    return pesos[['Quantidade', 'Minimo', 'Maximo', 'Media']]
-
 def get_analise_prioridade(data):
-    data.Prioridade=data.Prioridade.replace({'10. Antecipado ProduÃ§Ã£o':'10. Antecipado',
-                                             '05. Atraso maior que 30 dias e':'05. Atraso maior 30 dias',
-                                             '01. CrÃ\xadtico Parada de linha':'01. Critico Parada de linha',
-                                             '02. CrÃ\xadtico':'02. Critico',
-                                             '04. ExportaÃ§Ã£o':'04. Exportacao'})
     return pd.DataFrame(df_data['Prioridade'].value_counts())
-
-def get_leves(data):
-    fields=['Volume', 'Esp', 'Diam', 'Larg', 'Ciclo_Rec2', 'Prod', 'Peso',
-           'Limpeza', 'Agrup_Ciclo', 'Prioridade', 'Pilha']
-    data.Larg = data.Larg.astype(int)
-    return data.sort_values(by='Peso')[fields].head(10).set_index('Volume')
 
 def get_pesos(data):
     aux=[]
@@ -606,6 +573,27 @@ def get_pesos(data):
 
     return pd.DataFrame(aux, columns=["Peso", "Qtde", "Minimo", "Maximo", "Media"]).set_index('Peso')
 
+def get_pilha(data):
+    Pilhas=data[['Pilha']]
+    Pilhas=Pilhas.query('Pilha == Pilha')
+    Pilhas['REC']=Pilhas['Pilha'].str.slice(0,2)
+    Pilhas['Prefixo']=Pilhas['Pilha'].str.slice(0,8)
+    Pilhas['Sufixo']=Pilhas['Pilha'].apply(lambda x: x[-1:])
+    Pilhas.reset_index(drop=True, inplace=True)
+    Pilhas.rename(columns={'Pilha':'Cod_Pilha'}, inplace=True)
+    Pilhas=get_ordem_pilha(dados=Pilhas)
+    saida=[]
+    for i in Pilhas.query('REC == "R2"').Pos.unique():
+        posicao = str(i+1)+"ª Posicão"
+        qtde = len(Pilhas.query('Pos == @i'))
+        if qtde > 0:
+            saida.append([posicao, qtde])
+    
+    saida=pd.DataFrame(saida, columns=['Posicao','Qtde']).set_index('Posicao')
+    saida.index.name = 'Pilhas'
+    return saida
+
+
 def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(sep=';').encode('utf-8')
@@ -616,7 +604,7 @@ st.set_page_config(page_title="Otimizador", page_icon="2️⃣", layout="wide", 
 st.markdown("""
 <style>
 .big-font {
-    font-size:25px !important;
+    font-size:16px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -626,59 +614,55 @@ st.markdown('<p class="big-font">Otimizador Recozimento 2</p>', unsafe_allow_htm
 with st.sidebar:
     cols = st.columns((1, 1))
 
-    pesados= cols[0].number_input('Rolos Pesados', min_value=0, max_value=4, value=2, step=1)
+    pesados = cols[0].number_input('Rolos Pesados', min_value=0, max_value=4, value=2, step=1)
     p3 = cols[1].slider('Intervalo Pesados (tons)', 20, 27, (20, 27))
     medios = cols[0].number_input('Rolos Médios', min_value=0, max_value=4, value=1, step=1)
     p2 = cols[1].slider('Intervalo Médios (tons)', 15, 20, (15, 20))
     leves = cols[0].number_input('Rolos Leves', min_value=0, max_value=4, value=1, step=1)
     p1 = cols[1].slider('Intervalo Leves (tons)', 5, 15, (5, 15))
-    max_complementos = cols[0].number_input('Máximo Complementos', min_value=0, max_value=4, value=1, step=1)
 
-form = st.form(key="annotation", clear_on_submit=False)
-
-with form:
-    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
+filtros = st.form(key="filtros", clear_on_submit=False)
+with filtros:
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        preview = st.form_submit_button(label="Preview")
+        pos_pilha = st.number_input('Posicão Pilha até:', min_value=1, max_value=9, value=1, step=1, format='%i')
     with col2:
-        submitted = st.form_submit_button(label="Executar")
+        agrupamento = st.selectbox('Grupo:', ('TODOS', 'EM', 'QC', 'IF/EEP-CC', 'EEP', 'EP'))
     with col3:
-        rolos_leves = st.form_submit_button(label="Leves")
+        max_complementos = st.number_input('Máximo Complementos', min_value=0, max_value=4, value=1, step=1)     
+    with col4:
+        preview     = st.form_submit_button(label="♻️ - Preview ")
+        submitted   = st.form_submit_button(label="☠️ - Executar")    
 
-if rolos_leves:
-    df_data, rec2_ciclo = get_data()
-    lista=get_leves(data=df_data)
-    #menores=list(lista.index)
-    st.table(lista.style.format(subset=['Diam', 'Esp', 'Peso'], formatter="{:.2f}"))
-    #options = st.multiselect('What are your favorite colors', menores, [menores[0]])
 
 if preview:
-    cols = st.columns((1, 1))
+    cols = st.columns([3, 1, 1])
     df_data, rec2_ciclo = get_data()
     stats, ciclos = get_estatisticas(df_data)
     st.table(stats.style.format(subset=['Media', 'Minimo', '25%', '50%', '75%', 'Maximo'], formatter="{:.2f}"))
     cols[1].table(ciclos)
     pesos = get_pesos(df_data)
-    st.table(pesos)#.style.format(subset=['Quantidade'], formatter="{:.0f}"))
+    cols[0].table(pesos)
     prio=get_analise_prioridade(df_data)
     cols[0].table(prio)
+    sts_pilhas = get_pilha(df_data)
+    if sts_pilhas.shape[0] > 0:
+        cols[2].table(sts_pilhas)
+    
 
 if submitted:
     INFEASIBLE = 1e8
     df_data, rec2_ciclo = get_data()
-    #st.write(df_data.shape[0])
     saida=execute(df_data)
 
     if saida.shape[0] > 0:
         st.success(f"Cargas sugeridas ! 🤔")
         saida=saida[['Esp','Diam','Larg','Ciclo_Rec2','Prod','Peso','Agrup_Ciclo','Prioridade','Limpeza',
-                     'Posicao', 'Pilha', 'Opcao']]
-        saida.rename(columns={'Agrup_Ciclo':'Grupo'}, inplace=True)
+                     'Posicao', 'Pilha', 'Pos', 'Obs', 'Opcao']]
+        saida.rename(columns={'Agrup_Ciclo':'Grupo', 'Ciclo_Rec2':'Ciclo', 'Opcao':'SEQ'}, inplace=True)
         saida.Larg = saida.Larg.astype(int)
         st.table(saida.style.format(subset=['Peso'], formatter="{:.2f}"))
         download=convert_df(df=saida)
-        st.download_button(label='📥 Download',
-                                data=download,
-                                file_name= 'df_test.csv')
+        st.download_button(label='📥 Download', data=download, file_name= 'df_test.csv')
     else:
         st.error(f"❌ Sem resultados")

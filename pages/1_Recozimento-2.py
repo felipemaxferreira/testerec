@@ -26,7 +26,8 @@ def get_data():
 
     df_data=df_data.query('Ciclo_Rec2 == Ciclo_Rec2 and Situacao == "ESTOCADO"')
 
-    df_ciclo = pd.read_csv('CICLO_LETRAS.csv', sep=';', encoding='latin-1', low_memory=False)
+    df_ciclo = pd.read_csv('CICLO_LETRAS.csv', sep=';',
+                            encoding='latin-1', low_memory=False)
     df_ciclo.drop(columns=['CICLO'], inplace=True)
 
     df_data['REC']=df_data['Pilha'].str.slice(0,2)
@@ -39,7 +40,14 @@ def get_data():
     rec2_ciclo=get_list_ciclo(df_ciclo)
 
     df_data['Ciclo_Rec2'] = df_data['Ciclo_Rec2'].str.strip()
-
+    
+    lim_inf_esp=f_esp[0]
+    lim_sup_esp=f_esp[1]
+    lim_inf_larg=f_larg[0]
+    lim_sup_larg=f_larg[1]
+    
+    df_data=df_data.query('Esp >= @lim_inf_esp and Esp <= @lim_sup_esp and Larg >= @lim_inf_larg and Larg <= @lim_sup_larg')
+    
     df_data = df_data.sort_values(by=['Esp', 'Peso', 'Diam', 'Ciclo_Rec2']).copy().reset_index(drop=True)
 
     df_data=df_data.query('Prioridade != "INDEFINIDO"')
@@ -97,7 +105,7 @@ def get_data():
 
     df_data = df_data[['Volume','Esp','Diam','Larg','Ciclo_Rec2','Prod','Peso','Faixa_Fator', 'Limpeza',
                        'Prazo_Antiguidade', 'Agrup_Ciclo', 'Prioridade', 'Peso_Prioridade', 'Antiguidade', 
-                       'Antiguidade_Horas', 'Critico_Antiguidade', 'Pilha', 'Obs']]
+                       'Antiguidade_Horas', 'Critico_Antiguidade', 'Pilha', 'Obs', 'PA', 'TT']]
 
     df_data.reset_index(drop=True, inplace=True)
 
@@ -108,24 +116,17 @@ def get_data():
 
     df_data = df_data[['Volume', 'Esp', 'Diam', 'Larg', 'Ciclo_Rec2', 'Prod', 'Peso', 'Faixa_Fator', 'Limpeza',
                        'Prioridade', 'Peso_Prioridade', 'Antiguidade', 'Agrup_Ciclo', 'Antiguidade_Horas', 
-                       'Critico_Antiguidade', 'Pilha', 'REC', 'Pos', 'Obs']]
+                       'Critico_Antiguidade', 'Pilha', 'REC', 'Pos', 'Obs', 'PA', 'TT']]
 
     df_data.Pos.fillna(0, inplace=True)
     df_data.REC.fillna('R2', inplace=True)
     
-    set_pilha = list(range(0, pos_pilha))
-    df_data=df_data.query('Pos in @set_pilha')
+    #set_pilha = list(range(0, pos_pilha))
+    if pos_pilha == 'TOPO':
+        df_data=df_data.query('Pos == 0')
     
     if agrupamento != "TODOS":
         df_data=df_data.query('Agrup_Ciclo == @agrupamento')    
-    
-    df_data.reset_index(drop=True, inplace=True)
-
-    # ## Constraints
-
-    #data = datetime.now().strftime("%d-%m-%Y")
-    #hora = datetime.now().strftime("%H")
-    #prefixo=data+"-"+hora+"-horas"
 
     df_data=df_data.sort_values(by='Peso')
     df_data.reset_index(drop=True, inplace=True)
@@ -203,8 +204,8 @@ def ciclos(array):
 
 
 def constraint_altura(solucao):
-    convectores = (len(solucao)-1) * 59.5
-    altura = 4810 - convectores - sum(solucao['Larg'])
+    convectores = (len(solucao)-1) * 60
+    altura = max_altura - convectores - sum(solucao['Larg'])
     return altura
 
 
@@ -347,30 +348,7 @@ def funcao_custo(solucao):
     return (altura*100)+prazo+peso*1000+antiguidade+posicao*1000000
 
 
-def get_combinations(data, n_pesado, n_medio, n_leve):
-    combs=[]
-    count=0
-
-    div=data.Peso.quantile([0.33, 0.67])
-    lim1=div[0.33]
-    lim2=div[0.67]
-    idx1=list(data.query('Peso <= @lim1').index)
-    idx2=list(data.query('Peso > @lim1 and Peso < @lim2').index)
-    idx3=list(data.query('Peso >= @lim2').index)
-    pesado=list(combinations(idx3, r=n_pesado))
-    medio=list(combinations(idx2, r=n_medio))
-    leve=list(combinations(idx1, r=n_leve))
-
-    for p in pesado:
-        for m in medio:
-            for l in leve:
-                elemento=list(p) + list(m) + list(l)
-                combs.append([count, elemento])
-                count+=1
-
-    return combs
-
-def get_combinations_2(data, n_pesado, n_medio, n_leve, p1, p2, p3):
+def get_combinations(data, n_pesado, n_medio, n_leve, p1, p2, p3):
     combs=[]
     count=0
 
@@ -386,10 +364,10 @@ def get_combinations_2(data, n_pesado, n_medio, n_leve, p1, p2, p3):
     idx1=list(data.query('Peso >= @leve_i and Peso < @leve_f').index)
     idx2=list(data.query('Peso >= @medio_i and Peso < @medio_f').index)
     idx3=list(data.query('Peso >= @pesado_i and Peso <= @pesado_f').index)
-
-    pesado=list(combinations(idx3, r=n_pesado))
-    medio=list(combinations(idx2, r=n_medio))
-    leve=list(combinations(idx1, r=n_leve))
+    
+    pesado=list(combinations(idx3, r=int(n_pesado)))
+    medio=list(combinations(idx2, r=int(n_medio)))
+    leve=list(combinations(idx1, r=int(n_leve)))
 
     for p in pesado:
         for m in medio:
@@ -399,6 +377,27 @@ def get_combinations_2(data, n_pesado, n_medio, n_leve, p1, p2, p3):
                 count+=1
 
     return combs
+
+
+def get_full_combs(data, rep):
+    size=data.shape[0]
+    limit=300
+    
+    if rep == 4:
+        limit = 200
+        
+    if size > limit:
+        idx=random.sample(list(data.index), 200)
+        combs=list(combinations(idx, r=rep))
+    else:
+        combs=list(combinations(list(list(data.index)), r=rep))
+    
+    saida=[]
+    for i in range(len(combs)):
+        saida.append([i, list(combs[i])])
+        
+    return saida
+
 
 def get_spread(data):
     mapa=[]
@@ -413,10 +412,15 @@ def optimization(data, geracoes=10, sample_size=100000, best_filter=20, dominio=
     saida=[]
     filtro=[]
 
-    if dominio==4:
-        combs=get_combinations_2(data, n_pesado=sequencia[0], n_medio=sequencia[1], n_leve=sequencia[2], p1=p1, p2=p2, p3=p3)
+    if tipo == 'Seleção parametros':
+        if dominio==4:
+            combs=get_combinations(data, n_pesado=sequencia[0], n_medio=sequencia[1], n_leve=sequencia[2], 
+                                   p1=p1, p2=p2, p3=p3)
+        else:
+            combs=get_combinations(data, n_pesado=sequencia[0], n_medio=sequencia[1], n_leve=sequencia[2], 
+                                   p1=p1, p2=p2, p3=p3)
     else:
-        combs=get_combinations_2(data, n_pesado=sequencia[0], n_medio=sequencia[1], n_leve=sequencia[2], p1=p1, p2=p2, p3=p3)
+        combs=get_full_combs(data, rep=n_rolos)
 
     sample_size=int(len(combs)*0.1)
     if sample_size > 100000:
@@ -510,7 +514,6 @@ def execute(df_data):
             if len(solucao) > 0:
                 break
 
-
         combs=[]
         if len(solucao) > 0:
             combs=compare_solutions(solucao)
@@ -538,16 +541,19 @@ def execute(df_data):
     return resultado
 
 
-def get_estatisticas(df_data):
+def get_larguras(df_data):
     stats=pd.DataFrame(df_data['Larg'].describe().round(2)).T
     stats.drop(columns=['std'], inplace=True)
     stats.columns=['Quantidade', 'Media', 'Minimo', '25%', '50%', '75%', 'Maximo']
     stats.index=['Larguras']
     stats['< 1100'] = df_data.query('Larg < 1100').shape[0]
     stats.Quantidade = stats.Quantidade.astype(int)
+    return stats
+
+def get_ciclos(df_data):
     ciclos=pd.DataFrame(df_data['Agrup_Ciclo'].value_counts())
     ciclos.rename(columns={'Agrup_Ciclo':'Qtde'}, inplace=True)
-    return stats, ciclos
+    return ciclos
 
 def get_analise_prioridade(data):
     return pd.DataFrame(df_data['Prioridade'].value_counts())
@@ -593,6 +599,25 @@ def get_pilha(data):
     saida.index.name = 'Pilhas'
     return saida
 
+def get_stats_larguras(data):    
+    largura=[]
+    largura.append([data.shape[0]])
+    largura.append([min(data.Larg)])
+    largura.append([max(data.Larg)])
+    largura.append([len(data.query('Larg < 1100'))])
+    largura.append([len(data.query('Larg >= 1300'))])
+    return pd.DataFrame(largura, index=['Total Rolos', 'Largura Minima', 'Largura Maxima', 
+                                        'Qtde Largs < 1100', 'Qtde Largs >= 1300'], columns=['Valores'])
+
+def get_pa(data):
+    saida = pd.DataFrame(data.PA.value_counts())
+    saida.rename(columns={'PA':'PA: Qtde Rolos'}, inplace=True)
+    return saida
+
+def get_tt(data):
+    saida = pd.DataFrame(data.query('Limpeza == "EXTRA_LIMPO"').TT.value_counts())
+    saida.rename(columns={'TT':'TT: EXTRA LIMPO'}, inplace=True)
+    return saida
 
 def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
@@ -609,51 +634,95 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="big-font">Otimizador Recozimento 2</p>', unsafe_allow_html=True)
+#st.markdown('<p class="big-font">Otimizador Recozimento 2</p>', unsafe_allow_html=True)
 
 with st.sidebar:
     cols = st.columns((1, 1))
+    
+    tipo = st.radio("Tipo de rodada", ('Seleção parametros', 'Sem restrições'))
+    
+    preview     = st.button(label="♻️ - Preview Estoque")
+    submitted   = st.button(label="☠️ - Executar Cargas") 
 
-    pesados = cols[0].number_input('Rolos Pesados', min_value=0, max_value=4, value=2, step=1)
-    p3 = cols[1].slider('Intervalo Pesados (tons)', 20, 27, (20, 27))
-    medios = cols[0].number_input('Rolos Médios', min_value=0, max_value=4, value=1, step=1)
-    p2 = cols[1].slider('Intervalo Médios (tons)', 15, 20, (15, 20))
-    leves = cols[0].number_input('Rolos Leves', min_value=0, max_value=4, value=1, step=1)
-    p1 = cols[1].slider('Intervalo Leves (tons)', 5, 15, (5, 15))
-
-filtros = st.form(key="filtros", clear_on_submit=False)
-with filtros:
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        pos_pilha = st.number_input('Posicão Pilha até:', min_value=1, max_value=9, value=1, step=1, format='%i')
-    with col2:
-        agrupamento = st.selectbox('Grupo:', ('TODOS', 'EM', 'QC', 'IF/EEP-CC', 'EEP', 'EP'))
-    with col3:
-        max_complementos = st.number_input('Máximo Complementos', min_value=0, max_value=4, value=1, step=1)     
-    with col4:
-        preview     = st.form_submit_button(label="♻️ - Preview ")
-        submitted   = st.form_submit_button(label="☠️ - Executar")    
-
+with st.expander("Seleção de Pesos", expanded=False):
+    with st.container():
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            #pos_pilha = st.selectbox('Posicão Pilha:', ('TODOS', 'TOPO'))
+            pesados = st.number_input('Rolos Pesados', min_value=0, max_value=4, value=2, step=1)
+            medios = st.number_input('Rolos Médios', min_value=0, max_value=4, value=1, step=1)
+            leves = st.number_input('Rolos Leves', min_value=0, max_value=4, value=1, step=1)            
+            
+        with col2:
+            #agrupamento = st.selectbox('Grupo:', ('TODOS', 'EM', 'QC', 'IF/EEP-CC', 'EEP', 'EP'))
+            p3 = st.slider('Intervalo Pesados (tons)', 20, 27, (20, 27))
+            p2 = st.slider('Intervalo Médios (tons)', 15, 20, (15, 20))
+            p1 = st.slider('Intervalo Leves (tons)', 5, 15, (5, 15))     
+    
+with st.expander("Parametros Recozimento-2", expanded=True):
+    with st.container():
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            max_complementos = st.number_input('Máximo Complementos', min_value=0, max_value=4, value=1, step=1)    
+            f_esp = st.slider('Espessura', 0.15, 5.0, (0.3, 5.0))
+        with col2:
+            pos_pilha = st.selectbox('Posicão Pilha:', ('TODOS', 'TOPO'))
+        with col3:
+            max_altura = st.number_input('Altura Máxima', min_value=0, max_value=5010, value=4810, step=1)    
+            f_larg = st.slider('Largura', 500, 1700, (600, 1600))
+            #max_sugestoes = st.number_input('Qtde Sugestões', min_value=0, max_value=20, value=10, step=1)
+        with col4:
+            agrupamento = st.selectbox('Grupo:', ('TODOS', 'EM', 'QC', 'IF/EEP-CC', 'EEP', 'EP'))           
+            
 
 if preview:
-    cols = st.columns([3, 1, 1])
     df_data, rec2_ciclo = get_data()
-    stats, ciclos = get_estatisticas(df_data)
-    st.table(stats.style.format(subset=['Media', 'Minimo', '25%', '50%', '75%', 'Maximo'], formatter="{:.2f}"))
-    cols[1].table(ciclos)
+    ciclos = get_ciclos(df_data)
     pesos = get_pesos(df_data)
-    cols[0].table(pesos)
-    prio=get_analise_prioridade(df_data)
-    cols[0].table(prio)
+    prio = get_analise_prioridade(df_data)
     sts_pilhas = get_pilha(df_data)
-    if sts_pilhas.shape[0] > 0:
-        cols[2].table(sts_pilhas)
+    pa = get_pa(df_data)
+    stats_largs = get_stats_larguras(df_data)
     
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.table(stats_largs)
+        st.table(ciclos)
+        if sts_pilhas.shape[0] > 0:
+            st.table(sts_pilhas)        
+    with col2:
+        st.table(pesos.style.format(subset=['Minimo', 'Maximo', 'Media'], formatter="{:.3f}"))
+        st.table(prio)
+    with col3:
+        st.table(pa)
 
 if submitted:
     INFEASIBLE = 1e8
-    df_data, rec2_ciclo = get_data()
-    saida=execute(df_data)
+    st.write(tipo)
+    if tipo != 'Seleção parametros':
+        pos_pilha = 'TODOS'
+        agrupamento = 'TODOS'
+        f_larg = (600, 1600)
+        f_esp = (0.3, 5.0)
+        max_complementos = 4
+        max_altura = 4810
+        
+        df_data, rec2_ciclo = get_data()
+        n_rolos=4
+        saida4=execute(df_data)
+        
+        if saida4.shape[0] > 0:
+            fora=list(saida4.index)
+            df_data=df_data.query('Volume not in @fora')
+            df_data.reset_index(drop=True, inplace=True)
+        
+        n_rolos=3
+        saida3=execute(df_data)
+        
+        saida=pd.concat([saida4, saida3])
+    else:
+        df_data, rec2_ciclo = get_data()
+        saida=execute(df_data)
 
     if saida.shape[0] > 0:
         st.success(f"Cargas sugeridas ! 🤔")

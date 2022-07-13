@@ -18,7 +18,8 @@ def eda(data):
                          'Observação':'Obs',
                          'Endereço':'Pilha',
                          'Classificação da prioridade':'Prioridade',
-                         'Limp Sup':'Limpeza'
+                         'Limp Sup':'Limpeza',
+                         'Mês/Dec     PA':'PA'
                         }, inplace=True)
 
     colunas=['Data_Producao',
@@ -35,7 +36,9 @@ def eda(data):
              'Limpeza',
              'Obs',
              'Pilha',
-             'Prioridade']
+             'Prioridade',
+             'PA',
+             'TT']
 
     data=data[colunas]
 
